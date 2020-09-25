@@ -1,1 +1,1 @@
-web scraping to get all data on http://lib.kunci.or.id/
+web scraping to get all data from http://lib.kunci.or.id/
