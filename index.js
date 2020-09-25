@@ -232,10 +232,6 @@ async function scrap() {
     return dataAllId
 }
 
-async function convertToCsv() {
-
-}
-
 async function getTotalPage(page) {
     const totalPage = await page.evaluate(() => {
         const hrefEl = document.querySelector('#left .pagingList a:last-child').getAttribute('href')
