@@ -3,8 +3,6 @@ const app = express()
 const puppeteer = require('puppeteer')
 const { Parser } = require('json2csv')
 
-let pageNumber = 1
-
 app.get('/scrap/jsondata', (req, res, next) => {
     const fields = [
         {
@@ -14,6 +12,10 @@ app.get('/scrap/jsondata', (req, res, next) => {
         {
             label: 'ID',
             value: 'id'
+        },
+        {
+            label: 'Link',
+            value: 'link_catalog'
         },
         {
             label: 'Edition',
@@ -127,6 +129,7 @@ async function scrap() {
             mainItem.forEach(item => {
                 arrData.push({
                     id: item.firstChild.getAttribute('href').split('=')[2],
+                    link_catalog: 'https://lib.kunci.or.id/' + item.firstChild.getAttribute('href'),
                     title: item.firstChild.innerHTML,
                     edition: '',
                     call_number: '',
@@ -151,18 +154,16 @@ async function scrap() {
             return arrData
         })
 
-        // Concat all data from previous pages
-        dataAllId = dataAllId.concat(data)
-
         // Scrap detail items
-        for (let j = 0; j < dataAllId.length; j++) {
+        for (let j = 0; j < data.length; j++) {
 
-            console.log(`scraping detail: ${dataAllId[j].id}`)
-            await page.goto(`http://lib.kunci.or.id/index.php?p=show_detail&id=${dataAllId[j].id}`)
+            console.log(`scraping detail: ${data[j].id}:${j+1}`)
+            await page.goto(`http://lib.kunci.or.id/index.php?p=show_detail&id=${data[j].id}`)
 
             const dataDetail = await page.evaluate(() => {
                 const mainItem = document.querySelectorAll('#left table tbody tr')
                 let authors = []
+                let subjects = []
 
                 // Get authors
                 if (mainItem[5].querySelectorAll('.tblContent a')) {
@@ -172,12 +173,20 @@ async function scrap() {
                     })
                 }
 
+                // Get subjects
+                if (mainItem[6].querySelectorAll('.tblContent a')) {
+                    const tempSubjects = mainItem[6].querySelectorAll('.tblContent a')
+                    tempSubjects.forEach(item => {
+                        subjects.push(item.textContent)
+                    })
+                }
+
                 return {
                     edition: mainItem[1].querySelector('.tblContent') ? mainItem[1].querySelector('.tblContent').textContent : '',
                     call_number: mainItem[2].querySelector('.tblContent') ? mainItem[2].querySelector('.tblContent').textContent : '',
                     isbn_issn: mainItem[3].querySelector('.tblContent') ? mainItem[3].querySelector('.tblContent').textContent : '',
-                    authors: authors.join(' - '),
-                    subjects: mainItem[6].querySelector('.tblContent') ? mainItem[6].querySelector('.tblContent').textContent : '',
+                    authors: authors.join('; '),
+                    subjects: subjects.join(', '),
                     classification: mainItem[7].querySelector('.tblContent') ? mainItem[7].querySelector('.tblContent').textContent : '',
                     series_title: mainItem[8].querySelector('.tblContent') ? mainItem[8].querySelector('.tblContent').textContent : '',
                     gmd: mainItem[9].querySelector('.tblContent') ? mainItem[9].querySelector('.tblContent').textContent : '',
@@ -193,24 +202,27 @@ async function scrap() {
                 }
             })
 
-            dataAllId[j].edition = dataDetail.edition
-            dataAllId[j].call_number = dataDetail.call_number
-            dataAllId[j].isbn_issn = dataDetail.isbn_issn
-            dataAllId[j].authors = dataDetail.authors
-            dataAllId[j].subjects = dataDetail.subjects
-            dataAllId[j].classification = dataDetail.classification
-            dataAllId[j].series_title = dataDetail.series_title
-            dataAllId[j].gmd = dataDetail.gmd
-            dataAllId[j].language = dataDetail.language
-            dataAllId[j].publisher = dataDetail.publisher
-            dataAllId[j].publishing_year = dataDetail.publishing_year
-            dataAllId[j].publishing_place = dataDetail.publishing_place
-            dataAllId[j].collation = dataDetail.collation
-            dataAllId[j].abstract_notes = dataDetail.abstract_notes
-            dataAllId[j].specific_info_detail = dataDetail.specific_info_detail
-            dataAllId[j].file_attachment = dataDetail.file_attachment
-            dataAllId[j].availability = dataDetail.availability
+            data[j].edition = dataDetail.edition
+            data[j].call_number = dataDetail.call_number
+            data[j].isbn_issn = dataDetail.isbn_issn
+            data[j].authors = dataDetail.authors
+            data[j].subjects = dataDetail.subjects
+            data[j].classification = dataDetail.classification
+            data[j].series_title = dataDetail.series_title
+            data[j].gmd = dataDetail.gmd
+            data[j].language = dataDetail.language
+            data[j].publisher = dataDetail.publisher
+            data[j].publishing_year = dataDetail.publishing_year
+            data[j].publishing_place = dataDetail.publishing_place
+            data[j].collation = dataDetail.collation
+            data[j].abstract_notes = dataDetail.abstract_notes
+            data[j].specific_info_detail = dataDetail.specific_info_detail
+            data[j].file_attachment = dataDetail.file_attachment
+            data[j].availability = dataDetail.availability
         }
+
+        // Concat all data from previous pages
+        dataAllId = dataAllId.concat(data)
 
         console.log(`page ${i} scraped at ${getCurrentTime()}`)
     }
